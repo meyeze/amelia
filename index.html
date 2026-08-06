@@ -13,7 +13,7 @@
     --ink-1:#ffffff; --ink-2:#c3c2b7; --ink-muted:#898781;
     --hairline:rgba(255,255,255,0.10); --grid:#2c2c2a;
     /* categorical slots (dark mode) — fixed order, one per aircraft */
-    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
     --other:#898781;
     --radius:14px;
     --font:system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -94,14 +94,16 @@
 </div>
 
 <script>
-const AIRCRAFT_ORDER = ["Mavic Pro","Mini 3 Pro","Mini 4 Pro","Mavic 2 Zoom","Mavic 3","Phantom 3 Advanced","Unknown"];
+const AIRCRAFT_ORDER = ["Mavic Pro","Mini 3 Pro","Mini 4 Pro","Mavic 2 Zoom","Mavic 3","Spark","Phantom 3 Advanced","Recovered footage","Unknown"];
 const COLORS = {
   "Mavic Pro":            getCss('--s1'),
   "Mini 3 Pro":           getCss('--s2'),
   "Mini 4 Pro":           getCss('--s3'),
   "Mavic 2 Zoom":         getCss('--s4'),
   "Mavic 3":              getCss('--s5'),
+  "Spark":                getCss('--s6'),
   "Phantom 3 Advanced":   getCss('--s7'),
+  "Recovered footage":    getCss('--s8'),
   "Unknown":              getCss('--other'),
 };
 function getCss(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
@@ -199,9 +201,12 @@ function render(){
     const c = Cesium.Color.fromCssColorString(COLORS[f.aircraft] || "#898781");
     const e = viewer.entities.add({
       position: Cesium.Cartesian3.fromDegrees(f.lon, f.lat),
-      point: { pixelSize: 9, color: c,
-        outlineColor: Cesium.Color.fromCssColorString("#1a1a19"), outlineWidth: 2,
-        scaleByDistance: new Cesium.NearFarScalar(2e5, 1.4, 8e6, 0.7) },
+      point: f.approx
+        ? { pixelSize: 9, color: c.withAlpha(0.18), outlineColor: c, outlineWidth: 2,
+            scaleByDistance: new Cesium.NearFarScalar(2e5, 1.4, 8e6, 0.7) }
+        : { pixelSize: 9, color: c,
+            outlineColor: Cesium.Color.fromCssColorString("#1a1a19"), outlineWidth: 2,
+            scaleByDistance: new Cesium.NearFarScalar(2e5, 1.4, 8e6, 0.7) },
       properties: { flight: f },
     });
     entities.push(e);
@@ -214,6 +219,17 @@ function render(){
       });
       entities.push(line);
     }
+    (f.recoveredSegs || []).forEach(seg => {
+      if (seg.length < 2) return;
+      const line = viewer.entities.add({
+        polyline: {
+          positions: Cesium.Cartesian3.fromDegreesArray(seg.flat()),
+          width: 2,
+          material: new Cesium.PolylineDashMaterialProperty({ color: c.withAlpha(0.85), dashLength: 12 }) },
+        properties: { flight: f },
+      });
+      entities.push(line);
+    });
   });
   stats(vis);
 }
@@ -254,8 +270,9 @@ handler.setInputAction(m => {
       ${f.maxSpeedMs != null ? `<div class="row"><span class="l">Top speed</span><span class="r">${(f.maxSpeedMs*2.237).toFixed(1)} mph</span></div>` : ""}
       ${f.photos ? `<div class="row"><span class="l">Photos taken</span><span class="r">${f.photos}</span></div>` : ""}
       <div class="row"><span class="l">Location</span><span class="r">${f.city || f.lat.toFixed(4)+", "+f.lon.toFixed(4)}</span></div>
-      <div class="row"><span class="l">Flight path</span><span class="r">${f.hasTrack ? "on map" : "point only"}</span></div>
-      ${f.hasTrack ? "" : `<div class="note">${f.source === "aloft" ? "This flight predates on-device logs — summary data only." : "No GPS track in this log — likely an indoor or pre-lock flight."}</div>`}`;
+      <div class="row"><span class="l">Flight path</span><span class="r">${f.trackSource === "srt" ? "recovered from footage" : f.hasTrack ? "on map" : "point only"}</span></div>
+      ${f.videoCount ? `<div class="row"><span class="l">Videos in session</span><span class="r">${f.videoCount}</span></div>` : ""}
+      ${f.hasTrack ? "" : `<div class="note">${f.source === "archive" ? "Approximate location from archive folder “" + (f.folder || "") + "” — date from file metadata." : f.source === "aloft" ? "This flight predates on-device logs — summary data only." : "No GPS track in this log — likely an indoor or pre-lock flight."}</div>`}`;
     card.classList.add("show");
     viewer.camera.flyTo({destination: Cesium.Cartesian3.fromDegrees(f.lon, f.lat, 4000), duration: 1.4});
   } else card.classList.remove("show");
