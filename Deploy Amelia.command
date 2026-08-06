@@ -1,9 +1,15 @@
 #!/bin/bash
 # Deploy Amelia — commits everything in this folder and pushes it live.
-# Double-click me after Claude updates the files.
+# Reads the GitHub token from the git-ignored .token file (never committed).
 
 cd "$(dirname "$0")" || exit 1
-PAT="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"
+
+if [ ! -f .token ]; then
+  echo "No .token file found. Create it with:"
+  echo '  echo "github_pat_XXXX" > ~/Desktop/amelia/.token'
+  read -n 1 -s -r -p "Press any key to close"; exit 1
+fi
+PAT="$(cat .token | tr -d '[:space:]')"
 REMOTE="https://x-access-token:${PAT}@github.com/meyeze/amelia.git"
 
 echo "=== AMELIA DEPLOY ==="
