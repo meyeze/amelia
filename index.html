@@ -152,7 +152,7 @@ setStyle("clean");
 //   `https://tile.googleapis.com/v1/3dtiles/root.json?key=${GOOGLE_KEY}`);
 // viewer.scene.primitives.add(tileset);
 
-fetch("data/flights.json").then(r=>r.json()).then(d => {
+fetch("data/flights.json", {cache: "no-cache"}).then(r=>r.json()).then(d => {
   ALL = d.flights;
   FLIGHTS = d.flights.filter(f => f.lat && f.lon && !f.genericLocation);
   AIRCRAFT_ORDER.forEach(a => state.aircraft.add(a));
