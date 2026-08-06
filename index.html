@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Amelia — Every Flight, Found</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/cesium@1.119/Build/Cesium/Cesium.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/cesium@1.119/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: dark;
+    --surface-1:#1a1a19; --page:#0d0d0d;
+    --ink-1:#ffffff; --ink-2:#c3c2b7; --ink-muted:#898781;
+    --hairline:rgba(255,255,255,0.10); --grid:#2c2c2a;
+    /* categorical slots (dark mode) — fixed order, one per aircraft */
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9;
+    --other:#898781;
+    --radius:14px;
+    --font:system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  html,body{margin:0;height:100%;background:var(--page);font-family:var(--font);color:var(--ink-1);overflow:hidden}
+  #globe{position:absolute;inset:0}
+  .cesium-viewer-bottom{display:none!important}
+
+  /* ---------- top bar (Google Earth style pill) ---------- */
+  .topbar{position:absolute;top:18px;left:18px;z-index:10;display:flex;align-items:center;gap:12px;
+    background:rgba(26,26,25,.92);backdrop-filter:blur(10px);border:1px solid var(--hairline);
+    border-radius:28px;padding:10px 20px;box-shadow:0 4px 24px rgba(0,0,0,.4)}
+  .brand{font-weight:700;letter-spacing:.14em;font-size:15px}
+  .brand small{display:block;font-weight:400;letter-spacing:.02em;color:var(--ink-muted);font-size:10px;margin-top:1px}
+  .search{background:none;border:none;outline:none;color:var(--ink-1);font-size:14px;width:210px;font-family:var(--font)}
+  .search::placeholder{color:var(--ink-muted)}
+
+  /* ---------- filter dock (bottom pill, Google Earth toolbar homage) ---------- */
+  .dock{position:absolute;left:50%;transform:translateX(-50%);bottom:18px;z-index:10;display:flex;gap:8px;align-items:center;
+    background:rgba(26,26,25,.92);backdrop-filter:blur(10px);border:1px solid var(--hairline);
+    border-radius:28px;padding:8px 12px;box-shadow:0 4px 24px rgba(0,0,0,.4);max-width:92vw;overflow-x:auto}
+  .chip{display:flex;align-items:center;gap:7px;border:1px solid var(--hairline);border-radius:20px;
+    padding:6px 12px;font-size:12.5px;color:var(--ink-2);cursor:pointer;white-space:nowrap;background:transparent;font-family:var(--font)}
+  .chip .dot{width:9px;height:9px;border-radius:50%;flex:none}
+  .chip.on{background:rgba(255,255,255,.10);color:var(--ink-1);border-color:rgba(255,255,255,.25)}
+  .chip:hover{background:rgba(255,255,255,.06)}
+  .divider{width:1px;align-self:stretch;background:var(--hairline);margin:0 4px}
+
+  /* ---------- stats rail ---------- */
+  .stats{position:absolute;top:18px;right:18px;z-index:10;display:flex;flex-direction:column;gap:8px;width:190px}
+  .tile{background:rgba(26,26,25,.92);backdrop-filter:blur(10px);border:1px solid var(--hairline);
+    border-radius:var(--radius);padding:12px 14px}
+  .tile .k{font-size:11px;color:var(--ink-muted);letter-spacing:.04em;text-transform:uppercase}
+  .tile .v{font-size:22px;font-weight:650;margin-top:2px}
+  .tile .sub{font-size:11px;color:var(--ink-2);margin-top:2px}
+
+  /* ---------- flight card ---------- */
+  .card{position:absolute;left:18px;bottom:84px;z-index:11;width:270px;display:none;
+    background:rgba(26,26,25,.95);backdrop-filter:blur(10px);border:1px solid var(--hairline);
+    border-radius:var(--radius);padding:16px;box-shadow:0 4px 24px rgba(0,0,0,.5)}
+  .card.show{display:block}
+  .card h3{margin:0 0 2px;font-size:15px;display:flex;align-items:center;gap:8px}
+  .card .when{color:var(--ink-muted);font-size:12px;margin-bottom:10px}
+  .row{display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;border-top:1px solid var(--grid)}
+  .row .l{color:var(--ink-muted)} .row .r{color:var(--ink-1)}
+  .badge{font-size:10px;color:var(--ink-muted);border:1px solid var(--hairline);border-radius:10px;padding:1px 7px}
+  .close{position:absolute;top:10px;right:12px;color:var(--ink-muted);cursor:pointer;font-size:16px;background:none;border:none}
+  .note{font-size:11px;color:var(--ink-muted);margin-top:10px;line-height:1.4}
+</style>
+</head>
+<body>
+<div id="globe"></div>
+
+<div class="topbar">
+  <div class="brand">AMELIA<small>every flight, found</small></div>
+  <input class="search" id="search" placeholder="Search flights, places, years…">
+</div>
+
+<div class="stats" id="stats"></div>
+
+<div class="dock" id="dock"></div>
+
+<div class="card" id="card"></div>
+
+<script>
+const AIRCRAFT_ORDER = ["Mavic Pro","Mini 3 Pro","Mini 4 Pro","Mavic 2 Zoom","Mavic 3","Phantom 3 Advanced","Unknown"];
+const COLORS = {
+  "Mavic Pro":            getCss('--s1'),
+  "Mini 3 Pro":           getCss('--s2'),
+  "Mini 4 Pro":           getCss('--s3'),
+  "Mavic 2 Zoom":         getCss('--s4'),
+  "Mavic 3":              getCss('--s5'),
+  "Phantom 3 Advanced":   getCss('--s7'),
+  "Unknown":              getCss('--other'),
+};
+function getCss(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+let FLIGHTS = [], ALL = [];
+const state = { aircraft: new Set(), yearMin: 0, yearMax: 9999, q: "" };
+
+const viewer = new Cesium.Viewer("globe", {
+  animation:false, timeline:false, baseLayerPicker:false, geocoder:false,
+  homeButton:false, sceneModePicker:false, navigationHelpButton:false,
+  fullscreenButton:false, infoBox:false, selectionIndicator:false,
+  imageryProvider:false,
+});
+viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString("#0d0d0d");
+viewer.scene.skyAtmosphere.show = true;
+
+// v0 imagery: keyless Esri World Imagery; swapped for Google photorealistic 3D tiles once API key exists
+(async () => {
+  try {
+    const esri = await Cesium.ArcGisMapServerImageryProvider.fromUrl(
+      "https://services.arcgisonline.com/ArcGis/rest/services/World_Imagery/MapServer");
+    viewer.imageryLayers.addImageryProvider(esri);
+  } catch(e) {
+    viewer.imageryLayers.addImageryProvider(new Cesium.OpenStreetMapImageryProvider({url:"https://tile.openstreetmap.org/"}));
+  }
+})();
+
+// GOOGLE 3D TILES (ready — needs key):
+// const tileset = await Cesium.Cesium3DTileset.fromUrl(
+//   `https://tile.googleapis.com/v1/3dtiles/root.json?key=${GOOGLE_KEY}`);
+// viewer.scene.primitives.add(tileset);
+
+fetch("data/flights.json").then(r=>r.json()).then(d => {
+  ALL = d.flights;
+  FLIGHTS = d.flights.filter(f => f.lat && f.lon && !f.genericLocation);
+  AIRCRAFT_ORDER.forEach(a => state.aircraft.add(a));
+  buildDock(); render();
+  viewer.camera.flyTo({destination: Cesium.Cartesian3.fromDegrees(-95.26, 38.97, 2200000), duration: 2.5});
+});
+
+function years(){ return [...new Set(FLIGHTS.map(f=>+f.start?.slice(0,4)).filter(Boolean))].sort(); }
+
+function buildDock(){
+  const dock = document.getElementById("dock");
+  dock.innerHTML = "";
+  AIRCRAFT_ORDER.filter(a => FLIGHTS.some(f=>f.aircraft===a)).forEach(a => {
+    const b = document.createElement("button");
+    b.className = "chip on";
+    b.innerHTML = `<span class="dot" style="background:${COLORS[a]}"></span>${a}`;
+    b.onclick = () => { state.aircraft.has(a) ? state.aircraft.delete(a) : state.aircraft.add(a);
+      b.classList.toggle("on"); render(); };
+    dock.appendChild(b);
+  });
+  dock.insertAdjacentHTML("beforeend", `<div class="divider"></div>`);
+  const ys = years();
+  const sel = document.createElement("select");
+  sel.className = "chip"; sel.style.appearance = "none";
+  sel.innerHTML = `<option value="all">All years</option>` + ys.map(y=>`<option>${y}</option>`).join("");
+  sel.onchange = () => { if (sel.value==="all"){state.yearMin=0;state.yearMax=9999;} else {state.yearMin=+sel.value;state.yearMax=+sel.value;} render(); };
+  dock.appendChild(sel);
+  document.getElementById("search").oninput = e => { state.q = e.target.value.toLowerCase(); render(); };
+}
+
+function visible(){
+  return FLIGHTS.filter(f => {
+    const y = +f.start?.slice(0,4);
+    if (!state.aircraft.has(f.aircraft)) return false;
+    if (y < state.yearMin || y > state.yearMax) return false;
+    if (state.q && !(`${f.aircraft} ${f.city||""} ${f.area||""} ${f.start||""}`.toLowerCase().includes(state.q))) return false;
+    return true;
+  });
+}
+
+let entities = [];
+function render(){
+  entities.forEach(e => viewer.entities.remove(e)); entities = [];
+  const vis = visible();
+  vis.forEach(f => {
+    const c = Cesium.Color.fromCssColorString(COLORS[f.aircraft] || "#898781");
+    const e = viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(f.lon, f.lat),
+      point: { pixelSize: 9, color: c,
+        outlineColor: Cesium.Color.fromCssColorString("#1a1a19"), outlineWidth: 2,
+        scaleByDistance: new Cesium.NearFarScalar(2e5, 1.4, 8e6, 0.7) },
+      properties: { flight: f },
+    });
+    entities.push(e);
+    if (f.preview && f.preview.length > 1) {
+      const line = viewer.entities.add({
+        polyline: {
+          positions: Cesium.Cartesian3.fromDegreesArray(f.preview.flat()),
+          width: 2, material: c.withAlpha(0.75), clampToGround: false },
+        properties: { flight: f },
+      });
+      entities.push(line);
+    }
+  });
+  stats(vis);
+}
+
+function stats(vis){
+  const mins = vis.reduce((s,f)=>s+(f.durationMin||0),0);
+  const miles = vis.reduce((s,f)=>s+(f.distanceKm||0),0)*0.6214;
+  const places = new Set(vis.map(f => f.city || `${f.lat?.toFixed(2)},${f.lon?.toFixed(2)}`)).size;
+  const withTracks = vis.filter(f=>f.hasTrack).length;
+  const el = document.getElementById("stats");
+  el.innerHTML = `
+    <div class="tile"><div class="k">Flights</div><div class="v">${vis.length}</div>
+      <div class="sub">${withTracks} with full paths${ALL.length - FLIGHTS.length ? ` · ${ALL.length - FLIGHTS.length} pending location` : ""}</div></div>
+    <div class="tile"><div class="k">Airtime</div><div class="v">${(mins/60).toFixed(1)} h</div>
+      <div class="sub">${Math.round(mins).toLocaleString()} minutes</div></div>
+    <div class="tile"><div class="k">Distance flown</div><div class="v">${miles >= 100 ? Math.round(miles) : miles.toFixed(1)} mi</div>
+      <div class="sub">from decrypted tracks</div></div>
+    <div class="tile"><div class="k">Locations</div><div class="v">${places}</div>
+      <div class="sub">distinct takeoff spots</div></div>`;
+}
+
+// flight card on click
+const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+handler.setInputAction(m => {
+  const picked = viewer.scene.pick(m.position);
+  const card = document.getElementById("card");
+  if (picked?.id?.properties?.flight) {
+    const f = picked.id.properties.flight.getValue();
+    const dt = f.start ? new Date(f.start) : null;
+    card.innerHTML = `
+      <button class="close" onclick="this.parentElement.classList.remove('show')">✕</button>
+      <h3><span class="dot" style="width:10px;height:10px;border-radius:50%;background:${COLORS[f.aircraft]}"></span>
+        ${f.aircraft} <span class="badge">${f.source.toUpperCase()}</span></h3>
+      <div class="when">${dt ? dt.toLocaleString(undefined,{dateStyle:"full",timeStyle:"short"}) : "—"}</div>
+      <div class="row"><span class="l">Duration</span><span class="r">${f.durationMin ? f.durationMin.toFixed(1)+" min" : "—"}</span></div>
+      ${f.distanceKm != null ? `<div class="row"><span class="l">Distance</span><span class="r">${(f.distanceKm*0.6214).toFixed(2)} mi</span></div>` : ""}
+      <div class="row"><span class="l">Max altitude</span><span class="r">${f.maxAltM ? Math.round(f.maxAltM*3.281)+" ft" : "—"}</span></div>
+      ${f.maxSpeedMs != null ? `<div class="row"><span class="l">Top speed</span><span class="r">${(f.maxSpeedMs*2.237).toFixed(1)} mph</span></div>` : ""}
+      ${f.photos ? `<div class="row"><span class="l">Photos taken</span><span class="r">${f.photos}</span></div>` : ""}
+      <div class="row"><span class="l">Location</span><span class="r">${f.city || f.lat.toFixed(4)+", "+f.lon.toFixed(4)}</span></div>
+      <div class="row"><span class="l">Flight path</span><span class="r">${f.hasTrack ? "on map" : "point only"}</span></div>
+      ${f.hasTrack ? "" : `<div class="note">${f.source === "aloft" ? "This flight predates on-device logs — summary data only." : "No GPS track in this log — likely an indoor or pre-lock flight."}</div>`}`;
+    card.classList.add("show");
+    viewer.camera.flyTo({destination: Cesium.Cartesian3.fromDegrees(f.lon, f.lat, 4000), duration: 1.4});
+  } else card.classList.remove("show");
+}, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+</script>
+</body>
+</html>
