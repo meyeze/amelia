@@ -63,7 +63,7 @@
   .tile .sub{font-size:11px;color:var(--ink-2);margin-top:2px}
 
   /* ---------- flight card ---------- */
-  .card{position:absolute;left:18px;bottom:124px;z-index:11;width:270px;display:none;
+  .card{position:absolute;left:18px;bottom:168px;z-index:11;width:270px;display:none;
     background:rgba(26,26,25,.95);backdrop-filter:blur(10px);border:1px solid var(--hairline);
     border-radius:var(--radius);padding:16px;box-shadow:0 4px 24px rgba(0,0,0,.5)}
   .card.show{display:block}
@@ -116,6 +116,13 @@
   .styles button:last-child{border-right:none}
   .styles button.on{background:rgba(81,118,171,.28);color:var(--ink-1)}
   .styles button:hover:not(.on){background:rgba(255,255,255,.06)}
+  .styles.layers{bottom:117px}
+
+  /* ---------- cluster hover tooltip ---------- */
+  .clusterTip{position:absolute;z-index:20;display:none;pointer-events:none;
+    background:rgba(26,26,25,.95);border:1px solid var(--hairline);border-radius:10px;
+    padding:4px 10px;font-size:11px;letter-spacing:.05em;color:var(--ink-1);
+    box-shadow:0 2px 12px rgba(0,0,0,.5);white-space:nowrap}
 </style>
 </head>
 <body>
@@ -149,14 +156,20 @@
   <div id="wbody"></div>
 </div>
 
+<div class="styles layers" id="layers">
+  <button id="pathsBtn" title="Show or hide flight paths">PATHS</button>
+</div>
+
 <div class="styles" id="styles">
   <button data-style="clean" class="on">CLEAN</button>
   <button data-style="hybrid">HYBRID</button>
   <button data-style="slate">SLATE</button>
 </div>
 
+<div class="clusterTip" id="clusterTip"></div>
+
 <script>
-const BUILD = { version: "1.2.0", released: "August 7, 2026" };
+const BUILD = { version: "1.3.0", released: "August 7, 2026" };
 const AIRCRAFT_ORDER = ["Mavic Pro","Mini 3 Pro","Mini 4 Pro","Mavic 2 Zoom","Mavic 3","Spark","Phantom 3 Advanced","Recovered footage","Unknown"];
 const COLORS = {
   "Mavic Pro":            getCss('--s1'),
@@ -172,7 +185,7 @@ const COLORS = {
 function getCss(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 
 let FLIGHTS = [], ALL = [];
-const state = { aircraft: new Set(), yearMin: 0, yearMax: 9999, q: "" };
+const state = { aircraft: new Set(), yearMin: 0, yearMax: 9999, q: "", showPaths: false };
 
 const viewer = new Cesium.Viewer("globe", {
   animation:false, timeline:false, baseLayerPicker:false, geocoder:false,
@@ -194,27 +207,35 @@ ds.clustering.clusterEvent.addEventListener((clustered, cluster) => {
   cluster.billboard.show = true;
   cluster.billboard.image = clusterSprite(clustered.length);
   cluster.billboard.verticalOrigin = Cesium.VerticalOrigin.CENTER;
-  cluster.billboard.id = { cluster: true, entities: clustered };
+  cluster.billboard.id = { cluster: true, entities: clustered, count: clustered.length };
 });
+// heatmap-style cluster bubbles — no numbers, count shown on hover.
+// Cool (blue/teal) for small clusters → hot (orange/red) for big ones, sized by count.
+const HEAT_STOPS = [[56,132,244],[45,212,191],[250,204,21],[249,115,22],[230,57,70]];
+function heatColor(n){
+  const t = Math.max(0, Math.min(1, Math.log(n/3) / Math.log(200/3)));
+  const seg = Math.min(HEAT_STOPS.length-2, Math.floor(t*(HEAT_STOPS.length-1)));
+  const u = t*(HEAT_STOPS.length-1) - seg;
+  const a = HEAT_STOPS[seg], b = HEAT_STOPS[seg+1];
+  return [0,1,2].map(i => Math.round(a[i] + (b[i]-a[i])*u));
+}
 const clusterCache = {};
 function clusterSprite(n){
-  const key = n > 99 ? "99+" : String(n);
-  if (clusterCache[key]) return clusterCache[key];
-  const S = 72, c = document.createElement("canvas");
+  // quantize count so the sprite cache stays small
+  const q = n < 20 ? n : n < 50 ? Math.round(n/5)*5 : n < 200 ? Math.round(n/25)*25 : 250;
+  if (clusterCache[q]) return clusterCache[q];
+  const r = Math.min(46, 13 + 5.5*Math.log2(Math.max(q,3)/3));
+  const [R,G,B] = heatColor(q);
+  const rgba = a => `rgba(${R},${G},${B},${a})`;
+  const S = Math.ceil(2*(r+3)), c = document.createElement("canvas");
   c.width = c.height = S;
   const x = c.getContext("2d"), m = S/2;
-  const g = x.createRadialGradient(m, m, 10, m, m, m);
-  g.addColorStop(0, "rgba(81,118,171,0.45)");
-  g.addColorStop(0.6, "rgba(81,118,171,0.15)");
-  g.addColorStop(1, "rgba(81,118,171,0)");
-  x.fillStyle = g; x.fillRect(0, 0, S, S);
-  x.beginPath(); x.arc(m, m, 16, 0, 7);
-  x.fillStyle = "rgba(26,26,25,0.94)"; x.fill();
-  x.lineWidth = 2; x.strokeStyle = "rgba(255,255,255,0.55)"; x.stroke();
-  x.fillStyle = "#ffffff"; x.font = "600 13px system-ui,sans-serif";
-  x.textAlign = "center"; x.textBaseline = "middle";
-  x.fillText(key, m, m + 0.5);
-  clusterCache[key] = c;
+  x.beginPath(); x.arc(m, m, r, 0, 7);
+  x.fillStyle = rgba(0.16); x.fill();
+  x.lineWidth = 1.5; x.strokeStyle = rgba(0.85); x.stroke();
+  x.beginPath(); x.arc(m, m, 3, 0, 7);
+  x.fillStyle = rgba(0.6); x.fill();
+  clusterCache[q] = c;
   return c;
 }
 
@@ -232,7 +253,7 @@ async function getProvider(url) {
   return providerCache[url];
 }
 async function setStyle(name) {
-  document.querySelectorAll(".styles button").forEach(b => b.classList.toggle("on", b.dataset.style === name));
+  document.querySelectorAll("#styles button").forEach(b => b.classList.toggle("on", b.dataset.style === name));
   try {
     const providers = await Promise.all(STYLE_DEFS[name].layers.map(getProvider));
     viewer.imageryLayers.removeAll();
@@ -242,8 +263,15 @@ async function setStyle(name) {
     viewer.imageryLayers.addImageryProvider(new Cesium.OpenStreetMapImageryProvider({url:"https://tile.openstreetmap.org/"}));
   }
 }
-document.querySelectorAll(".styles button").forEach(b => b.onclick = () => setStyle(b.dataset.style));
+document.querySelectorAll("#styles button").forEach(b => b.onclick = () => setStyle(b.dataset.style));
 setStyle("clean");
+
+// flight-path visibility toggle (off by default — zoomed-out paths read as smudges)
+document.getElementById("pathsBtn").onclick = () => {
+  state.showPaths = !state.showPaths;
+  document.getElementById("pathsBtn").classList.toggle("on", state.showPaths);
+  render();
+};
 
 // GOOGLE 3D TILES (ready — needs key):
 // const tileset = await Cesium.Cesium3DTileset.fromUrl(
@@ -463,26 +491,28 @@ function render(){
       properties: { flight: f },
     });
     entities.push(e);
-    if (f.preview && f.preview.length > 1) {
-      const line = ds.entities.add({
-        polyline: {
-          positions: Cesium.Cartesian3.fromDegreesArray(f.preview.flat()),
-          width: 2, material: c.withAlpha(0.75), clampToGround: false },
-        properties: { flight: f },
+    if (state.showPaths) {
+      if (f.preview && f.preview.length > 1) {
+        const line = ds.entities.add({
+          polyline: {
+            positions: Cesium.Cartesian3.fromDegreesArray(f.preview.flat()),
+            width: 2, material: c.withAlpha(0.75), clampToGround: false },
+          properties: { flight: f },
+        });
+        entities.push(line);
+      }
+      (f.recoveredSegs || []).forEach(seg => {
+        if (seg.length < 2) return;
+        const line = ds.entities.add({
+          polyline: {
+            positions: Cesium.Cartesian3.fromDegreesArray(seg.flat()),
+            width: 2,
+            material: new Cesium.PolylineDashMaterialProperty({ color: c.withAlpha(0.85), dashLength: 12 }) },
+          properties: { flight: f },
+        });
+        entities.push(line);
       });
-      entities.push(line);
     }
-    (f.recoveredSegs || []).forEach(seg => {
-      if (seg.length < 2) return;
-      const line = ds.entities.add({
-        polyline: {
-          positions: Cesium.Cartesian3.fromDegreesArray(seg.flat()),
-          width: 2,
-          material: new Cesium.PolylineDashMaterialProperty({ color: c.withAlpha(0.85), dashLength: 12 }) },
-        properties: { flight: f },
-      });
-      entities.push(line);
-    });
   });
   const pr = ds.clustering.pixelRange; ds.clustering.pixelRange = 0; ds.clustering.pixelRange = pr;
   stats(vis);
@@ -531,13 +561,25 @@ handler.setInputAction(m => {
       ${f.maxSpeedMs != null ? `<div class="row"><span class="l">Top speed</span><span class="r">${(f.maxSpeedMs*2.237).toFixed(1)} mph</span></div>` : ""}
       ${f.photos ? `<div class="row"><span class="l">Photos taken</span><span class="r">${f.photos}</span></div>` : ""}
       <div class="row"><span class="l">Location</span><span class="r">${f.city || f.lat.toFixed(4)+", "+f.lon.toFixed(4)}</span></div>
-      <div class="row"><span class="l">Flight path</span><span class="r">${f.trackSource === "srt" ? "recovered from footage" : f.hasTrack ? "on map" : "point only"}</span></div>
+      <div class="row"><span class="l">Flight path</span><span class="r">${f.trackSource === "srt" ? "recovered from footage" : f.hasTrack ? (state.showPaths ? "on map" : "hidden — toggle PATHS") : "point only"}</span></div>
       ${f.videoCount ? `<div class="row"><span class="l">Videos in session</span><span class="r">${f.videoCount}</span></div>` : ""}
       ${f.hasTrack ? "" : `<div class="note">${f.source === "archive" ? "Approximate location from archive folder “" + (f.folder || "") + "” — date from file metadata." : f.source === "aloft" ? "This flight predates on-device logs — summary data only." : "No GPS track in this log — likely an indoor or pre-lock flight."}</div>`}`;
     card.classList.add("show");
     viewer.camera.flyTo({destination: Cesium.Cartesian3.fromDegrees(f.lon, f.lat, 4000), duration: 1.4});
   } else card.classList.remove("show");
 }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+// cluster count on hover (numbers live here now, not on the bubbles)
+const tip = document.getElementById("clusterTip");
+handler.setInputAction(m => {
+  const p = viewer.scene.pick(m.endPosition);
+  if (p?.id?.cluster) {
+    tip.textContent = p.id.count + " flights";
+    tip.style.left = (m.endPosition.x + 14) + "px";
+    tip.style.top = (m.endPosition.y - 10) + "px";
+    tip.style.display = "block";
+  } else if (tip.style.display !== "none") tip.style.display = "none";
+}, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 </script>
 </body>
 </html>
