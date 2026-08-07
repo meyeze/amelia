@@ -54,13 +54,21 @@
   .chip:hover{background:rgba(255,255,255,.06)}
   .divider{width:1px;align-self:stretch;background:var(--hairline);margin:0 4px}
 
-  /* ---------- stats rail ---------- */
-  .stats{position:absolute;top:18px;right:18px;z-index:10;display:flex;flex-direction:column;gap:8px;width:190px}
-  .tile{background:rgba(26,26,25,.92);backdrop-filter:blur(10px);border:1px solid var(--hairline);
-    border-radius:var(--radius);padding:12px 14px}
+  /* ---------- stats rail (connected — it IS the Black Box) ---------- */
+  .stats{position:absolute;top:18px;right:18px;z-index:10;display:flex;flex-direction:column;width:190px;
+    background:rgba(26,26,25,.92);backdrop-filter:blur(10px);border:1px solid var(--hairline);
+    border-radius:var(--radius);overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.4)}
+  .tile{padding:12px 14px;border-top:1px solid var(--grid)}
+  .tile:first-child{border-top:none}
   .tile .k{font-size:11px;color:var(--ink-muted);letter-spacing:.04em;text-transform:uppercase}
   .tile .v{font-size:22px;font-weight:650;margin-top:2px}
   .tile .sub{font-size:11px;color:var(--ink-2);margin-top:2px}
+  .bbOpen{display:block;width:100%;padding:11px 14px 13px;cursor:pointer;text-align:center;
+    background:rgba(111,160,232,.07);border:none;border-top:1px solid var(--grid);font-family:var(--font)}
+  .bbOpen:hover{background:rgba(111,160,232,.16)}
+  .bbOpen .k{display:block;font-size:9px;letter-spacing:.22em;color:var(--ink-muted);text-transform:uppercase}
+  .bbOpen .word{display:block;margin-top:2px;font-size:16px;font-weight:800;font-style:italic;
+    letter-spacing:.05em;color:#6FA0E8}
 
   /* ---------- flight card ---------- */
   .card{position:absolute;left:18px;bottom:168px;z-index:11;width:270px;display:none;
@@ -75,37 +83,71 @@
   .close{position:absolute;top:10px;right:12px;color:var(--ink-muted);cursor:pointer;font-size:16px;background:none;border:none}
   .note{font-size:11px;color:var(--ink-muted);margin-top:10px;line-height:1.4}
 
-  /* ---------- wrapped panel ---------- */
-  .wrapTab{position:absolute;right:0;bottom:130px;z-index:11;
-    background:rgba(26,26,25,.92);border:1px solid var(--hairline);border-right:none;
-    border-radius:12px 0 0 12px;color:var(--ink-2);font-family:var(--font);font-size:11px;
-    letter-spacing:.22em;padding:16px 9px;cursor:pointer;writing-mode:vertical-rl;text-orientation:mixed;
-    box-shadow:0 4px 24px rgba(0,0,0,.4)}
-  .wrapTab:hover{color:var(--ink-1);background:rgba(255,255,255,.06)}
-  .wrapped{position:absolute;top:0;right:0;bottom:0;z-index:15;width:min(46vw,720px);
-    background:rgba(20,20,19,.97);backdrop-filter:blur(14px);border-left:1px solid var(--hairline);
+  /* ---------- THE BLACK BOX (slide-out bento dashboard) ---------- */
+  .wrapped{position:absolute;top:0;right:0;bottom:0;z-index:15;width:min(62vw,900px);
+    background:#0a0a0a;border-left:1px solid var(--hairline);
     transform:translateX(102%);transition:transform .45s cubic-bezier(.22,.9,.32,1);
-    overflow-y:auto;padding:26px 28px 40px}
+    overflow-y:auto;padding:16px 16px 28px}
   .wrapped.open{transform:translateX(0)}
-  .wrapped h2{margin:0;font-size:20px;letter-spacing:.12em}
-  .wrapped .sub{color:var(--ink-muted);font-size:12px;margin:4px 0 20px}
-  .wrapped .wclose{position:absolute;top:18px;right:20px;background:none;border:none;color:var(--ink-muted);
-    font-size:18px;cursor:pointer}
-  .wgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:22px}
-  .wtile{background:var(--surface-1);border:1px solid var(--hairline);border-radius:var(--radius);padding:14px}
-  .wtile .k{font-size:10.5px;color:var(--ink-muted);letter-spacing:.06em;text-transform:uppercase}
-  .wtile .v{font-size:24px;font-weight:650;margin-top:3px}
-  .wtile .sub{font-size:11px;color:var(--ink-2);margin:3px 0 0}
-  .wsec{margin-bottom:22px}
-  .wsec h3{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-muted);margin:0 0 10px}
-  .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:7px;font-size:12px}
-  .bar-row .lbl{width:44px;color:var(--ink-2);flex:none;font-variant-numeric:tabular-nums}
-  .bar-row .lbl2{width:130px;color:var(--ink-2);flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .bar-row .track{flex:1;display:flex;align-items:center;gap:8px}
-  .bar-row .bar{height:8px;border-radius:0 4px 4px 0;background:#3987e5;min-width:2px}
-  .bar-row .num{color:var(--ink-1);font-size:11.5px;font-variant-numeric:tabular-nums}
-  .facts .row{display:flex;justify-content:space-between;gap:14px;font-size:12.5px;padding:7px 0;border-top:1px solid var(--grid)}
-  .facts .row .l{color:var(--ink-muted)} .facts .row .r{color:var(--ink-1);text-align:right}
+  .wrapped .wclose{position:fixed;top:16px;right:20px;z-index:16;background:rgba(22,22,22,.9);
+    border:1px solid rgba(255,255,255,.18);border-radius:50%;width:34px;height:34px;
+    color:#f2f1ea;font-size:15px;cursor:pointer;display:none}
+  .wrapped.open .wclose{display:block}
+  .bb-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .bb{border-radius:22px;padding:18px;color:#131208;position:relative;overflow:hidden;min-width:0}
+  .bb.s2{grid-column:span 2} .bb.s3{grid-column:span 3}
+  .bb.purple{background:#A796E8} .bb.yellow{background:#F0E63C} .bb.olive{background:#A69E24}
+  .bb.orange{background:#F04E23;color:#1a0c06} .bb.sage{background:#DFE5D8} .bb.green{background:#4FB56B}
+  .bb.dark{background:#161616;color:#f2f1ea}
+  .bb.olive{display:flex;flex-direction:column}
+  .bb.olive .vbars{flex:1;height:auto;min-height:110px}
+  .bb .pill{display:inline-block;border:1.5px solid currentColor;border-radius:999px;
+    padding:4px 13px;font-size:11px;font-weight:650;letter-spacing:.02em}
+  .bb .big{font-size:42px;font-weight:750;letter-spacing:-.02em;line-height:1.05;margin:12px 0 4px;
+    font-variant-numeric:tabular-nums}
+  .bb .big small{font-size:22px;font-weight:700}
+  .bb .sub{font-size:12px;opacity:.78;line-height:1.45}
+  .bb .cap{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;opacity:.65;margin-top:10px}
+  .bb h1{margin:6px 0 0;font-size:52px;font-weight:790;letter-spacing:-.02em;line-height:1}
+  .bb .hdr{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  /* thin vertical bars (Growth-card style) */
+  .vbars{display:flex;align-items:flex-end;gap:6px;height:96px;margin-top:16px}
+  .vbars .vb{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0;height:100%;justify-content:flex-end}
+  .vbars .vb i{width:4px;background:#15130a;border-radius:2px;min-height:3px}
+  .vbars .vb b{font-size:9px;font-weight:600;opacity:.7;transform:none;font-variant-numeric:tabular-nums}
+  /* waveform (header, monthly cadence) */
+  .wave{display:flex;align-items:flex-end;gap:2px;height:58px;margin-top:18px}
+  .wave i{flex:1;min-width:1px;background:rgba(15,8,50,.5);border-radius:1px}
+  .wave i.pk{background:#15082e}
+  .tag{position:absolute;background:#141414;color:#fff;font-size:10px;font-weight:600;
+    border-radius:9px;padding:4px 9px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.35)}
+  .tag:after{content:"";position:absolute;left:50%;top:100%;margin-left:-4px;
+    border:4px solid transparent;border-top-color:#141414}
+  /* horizontal rows with fat black bars (Spending-limits style) */
+  .hrow{display:flex;align-items:center;gap:10px;font-size:12.5px;margin:8px 0;font-weight:550}
+  .hrow .l{width:118px;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hrow .t{flex:1;display:flex;align-items:center;gap:8px}
+  .hrow .b{height:7px;border-radius:5px;background:#141414;min-width:5px}
+  .hrow .n{font-size:11px;font-weight:650;opacity:.75;font-variant-numeric:tabular-nums}
+  .bb.dark .hrow .b{background:#e8e6da}
+  /* mini calendar (record-day card) */
+  .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center;margin-top:12px}
+  .cal .h{font-size:8px;letter-spacing:.1em;opacity:.55;padding:2px 0}
+  .cal .d{font-size:11.5px;padding:4px 0;border-radius:50%;font-variant-numeric:tabular-nums}
+  .cal .d.hot{background:#F04E23;color:#fff;font-weight:750}
+  /* fact rows */
+  .frow{display:flex;justify-content:space-between;gap:12px;font-size:12px;padding:7px 0;
+    border-top:1px solid rgba(255,255,255,.12)}
+  .frow:first-of-type{border-top:none}
+  .frow .l{opacity:.6} .frow .r{text-align:right;font-weight:600}
+  .bb .goal{margin-top:14px}
+  .bb .goal .gt{display:flex;justify-content:space-between;font-size:11px;font-weight:600;margin-bottom:6px}
+  .bb .goal .gb{height:9px;border-radius:6px;background:rgba(15,10,40,.25);overflow:hidden}
+  .bb .goal .gb i{display:block;height:100%;border-radius:6px;background:#141414}
+  .bb .foot{display:flex;align-items:center;gap:14px;font-size:24px;font-weight:750;letter-spacing:-.01em}
+  .bb .foot .ic{width:44px;height:44px;border-radius:50%;background:#e8e6da;color:#141414;flex:none;
+    display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700}
+  .fleetdot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;flex:none}
 
   /* ---------- map style switcher ---------- */
   .styles{position:absolute;left:18px;bottom:74px;z-index:10;display:flex;flex-direction:row;
@@ -148,12 +190,9 @@
   <span style="color:var(--ink-muted)">Named for Amelia Earhart · Atchison, KS</span></div>
 </div>
 
-<button class="wrapTab" id="wrapTab">WRAPPED</button>
 <div class="wrapped" id="wrapped">
   <button class="wclose" id="wclose">✕</button>
-  <h2>AMELIA WRAPPED</h2>
-  <div class="sub" id="wsub"></div>
-  <div id="wbody"></div>
+  <div class="bb-grid" id="wbody"></div>
 </div>
 
 <div class="styles layers" id="layers">
@@ -169,7 +208,7 @@
 <div class="clusterTip" id="clusterTip"></div>
 
 <script>
-const BUILD = { version: "1.3.0", released: "August 7, 2026" };
+const BUILD = { version: "1.4.0", released: "August 7, 2026" };
 const AIRCRAFT_ORDER = ["Mavic Pro","Mini 3 Pro","Mini 4 Pro","Mavic 2 Zoom","Mavic 3","Spark","Phantom 3 Advanced","Recovered footage","Unknown"];
 const COLORS = {
   "Mavic Pro":            getCss('--s1'),
@@ -220,22 +259,41 @@ function heatColor(n){
   return [0,1,2].map(i => Math.round(a[i] + (b[i]-a[i])*u));
 }
 const clusterCache = {};
+let baseMode = "dark"; // "dark" = slate; "sat" = clean/hybrid imagery (needs more punch)
 function clusterSprite(n){
   // quantize count so the sprite cache stays small
   const q = n < 20 ? n : n < 50 ? Math.round(n/5)*5 : n < 200 ? Math.round(n/25)*25 : 250;
-  if (clusterCache[q]) return clusterCache[q];
+  const key = q + baseMode;
+  if (clusterCache[key]) return clusterCache[key];
   const r = Math.min(46, 13 + 5.5*Math.log2(Math.max(q,3)/3));
   const [R,G,B] = heatColor(q);
   const rgba = a => `rgba(${R},${G},${B},${a})`;
-  const S = Math.ceil(2*(r+3)), c = document.createElement("canvas");
+  const sat = baseMode === "sat";
+  const pad = sat ? 10 : 3;
+  const S = Math.ceil(2*(r+pad)), c = document.createElement("canvas");
   c.width = c.height = S;
   const x = c.getContext("2d"), m = S/2;
-  x.beginPath(); x.arc(m, m, r, 0, 7);
-  x.fillStyle = rgba(0.16); x.fill();
-  x.lineWidth = 1.5; x.strokeStyle = rgba(0.85); x.stroke();
-  x.beginPath(); x.arc(m, m, 3, 0, 7);
-  x.fillStyle = rgba(0.6); x.fill();
-  clusterCache[q] = c;
+  if (sat) {
+    // dark halo + shadow so bubbles read over satellite imagery
+    x.save();
+    x.shadowColor = "rgba(0,0,0,0.65)"; x.shadowBlur = 9; x.shadowOffsetY = 2;
+    x.beginPath(); x.arc(m, m, r, 0, 7);
+    x.fillStyle = rgba(0.30); x.fill();
+    x.restore();
+    x.beginPath(); x.arc(m, m, r, 0, 7);
+    x.lineWidth = 4; x.strokeStyle = "rgba(0,0,0,0.55)"; x.stroke();
+    x.lineWidth = 2; x.strokeStyle = rgba(1); x.stroke();
+    x.beginPath(); x.arc(m, m, 3.5, 0, 7);
+    x.fillStyle = rgba(1); x.fill();
+    x.lineWidth = 1.5; x.strokeStyle = "rgba(0,0,0,0.6)"; x.stroke();
+  } else {
+    x.beginPath(); x.arc(m, m, r, 0, 7);
+    x.fillStyle = rgba(0.16); x.fill();
+    x.lineWidth = 1.5; x.strokeStyle = rgba(0.85); x.stroke();
+    x.beginPath(); x.arc(m, m, 3, 0, 7);
+    x.fillStyle = rgba(0.6); x.fill();
+  }
+  clusterCache[key] = c;
   return c;
 }
 
@@ -254,6 +312,9 @@ async function getProvider(url) {
 }
 async function setStyle(name) {
   document.querySelectorAll("#styles button").forEach(b => b.classList.toggle("on", b.dataset.style === name));
+  baseMode = (name === "slate") ? "dark" : "sat";
+  // force re-cluster so bubbles pick up the mode-appropriate sprites
+  const pr = ds.clustering.pixelRange; ds.clustering.pixelRange = 0; ds.clustering.pixelRange = pr;
   try {
     const providers = await Promise.all(STYLE_DEFS[name].layers.map(getProvider));
     viewer.imageryLayers.removeAll();
@@ -282,7 +343,7 @@ fetch("data/flights.json", {cache: "no-cache"}).then(r=>r.json()).then(d => {
   ALL = d.flights;
   FLIGHTS = d.flights.filter(f => f.lat && f.lon && !f.genericLocation);
   AIRCRAFT_ORDER.forEach(a => state.aircraft.add(a));
-  buildDock(); render(); initMeta(); buildWrapped();
+  buildDock(); render(); initMeta(); buildBlackBox();
   viewer.camera.flyTo({destination: Cesium.Cartesian3.fromDegrees(-95.26, 38.97, 2200000), duration: 2.5});
 });
 
@@ -326,7 +387,7 @@ const hav2 = (a1,o1,a2,o2) => { const R=3958.8, r=Math.PI/180;
   const s = Math.sin((a2-a1)*r/2)**2 + Math.cos(a1*r)*Math.cos(a2*r)*Math.sin((o2-o1)*r/2)**2;
   return 2*R*Math.asin(Math.sqrt(s)); };
 
-function buildWrapped(){
+function buildBlackBox(){
   const mapped = FLIGHTS;
   const states = new Set(), countries = new Set();
   mapped.forEach(f => { const r = region(f.lat, f.lon);
@@ -343,15 +404,28 @@ function buildWrapped(){
   // media
   const photos = ALL.reduce((s,f)=>s+(f.photos||0),0);
   const videos = ALL.reduce((s,f)=>s+(f.videoCount||0),0);
-  // busiest month
+  // monthly cadence (full range, zeros filled) for the header waveform
   const byMonth = {};
   ALL.forEach(f => { const m = (f.start||"").slice(0,7); if (m) byMonth[m] = (byMonth[m]||0)+1; });
+  const monKeys = Object.keys(byMonth).sort();
+  const months = [];
+  if (monKeys.length) {
+    let [y, m] = monKeys[0].split("-").map(Number);
+    const [ey, em] = monKeys[monKeys.length-1].split("-").map(Number);
+    while (y < ey || (y === ey && m <= em)) {
+      const k = y + "-" + String(m).padStart(2,"0");
+      months.push([k, byMonth[k] || 0]);
+      m++; if (m > 12) { m = 1; y++; }
+    }
+  }
+  const maxM = Math.max(1, ...months.map(x=>x[1]));
+  const pkIdx = months.findIndex(x=>x[1]===maxM);
   const [topMon, topMonN] = Object.entries(byMonth).sort((a,b)=>b[1]-a[1])[0] || ["—",0];
   // years bars
   const byYear = {};
   ALL.forEach(f => { const y = (f.start||"").slice(0,4); if (y) byYear[y] = (byYear[y]||0)+1; });
-  const years = Object.entries(byYear).sort((a,b)=>a[0].localeCompare(b[0]));
-  const maxY = Math.max(...years.map(y=>y[1]));
+  const yearsArr = Object.entries(byYear).sort((a,b)=>a[0].localeCompare(b[0]));
+  const maxY = Math.max(...yearsArr.map(y=>y[1]));
   // top locations
   const byLoc = {};
   mapped.forEach(f => { const k = f.city || (f.lat.toFixed(2)+", "+f.lon.toFixed(2)); byLoc[k]=(byLoc[k]||0)+1; });
@@ -362,46 +436,111 @@ function buildWrapped(){
   ALL.forEach(f => { byAc[f.aircraft] = (byAc[f.aircraft]||0)+1; });
   const fleet = AIRCRAFT_ORDER.filter(a=>byAc[a]).map(a=>[a, byAc[a]]);
   const maxA = Math.max(...fleet.map(f=>f[1]));
+  // records
+  const topSpeed = Math.max(0, ...ALL.map(f=>f.maxSpeedMs||0)) * 2.237;
+  const maxAlt = Math.max(0, ...ALL.map(f=>f.maxAltM||0)) * 3.281;
+  const yrs = ALL.map(f => +((f.start||"").slice(0,4))).filter(Boolean);
+  const span = Math.min(...yrs) + "–" + Math.max(...yrs);
 
   const fdate = s => s === "—" ? s : new Date(s+"T12:00:00").toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"});
   const fmon = s => s === "—" ? s : new Date(s+"-15T12:00:00").toLocaleDateString(undefined,{year:"numeric",month:"long"});
 
-  document.getElementById("wsub").textContent = `A decade of flying · updated ${BUILD.released} · locations approximate from coordinates`;
+  // mini calendar for the record day (Monday-first)
+  let calHtml = "";
+  if (topDay !== "—") {
+    const d = new Date(topDay+"T12:00:00");
+    const yy = d.getFullYear(), mm = d.getMonth(), hot = d.getDate();
+    const first = (new Date(yy, mm, 1).getDay() + 6) % 7; // Mon=0
+    const nDays = new Date(yy, mm+1, 0).getDate();
+    calHtml = ["MON","TUE","WED","THU","FRI","SAT","SUN"].map(h=>`<span class="h">${h}</span>`).join("")
+      + `<span></span>`.repeat(first)
+      + Array.from({length:nDays},(_,i)=>`<span class="d${i+1===hot?" hot":""}">${i+1}</span>`).join("");
+  }
+
+  const waveHtml = months.map(([k,n],i) =>
+    `<i style="height:${Math.max(3,(n/maxM*100)).toFixed(1)}%"${i===pkIdx?' class="pk"':''}></i>`).join("");
+  const pkLeft = months.length > 1 ? (pkIdx/(months.length-1)*100).toFixed(1) : 50;
+
   document.getElementById("wbody").innerHTML = `
-    <div class="wgrid">
-      <div class="wtile"><div class="k">US states flown</div><div class="v">${states.size}</div>
-        <div class="sub">${[...states].slice(0,5).join(", ")}${states.size>5?"…":""}</div></div>
-      <div class="wtile"><div class="k">Countries</div><div class="v">${countries.size}</div>
-        <div class="sub">${[...countries].join(", ")}</div></div>
-      <div class="wtile"><div class="k">Most flights in one day</div><div class="v">${topDayN}</div>
-        <div class="sub">${fdate(topDay)}</div></div>
-      <div class="wtile"><div class="k">Longest flight</div><div class="v">${longest ? (longest.distanceKm*0.6214).toFixed(1)+" mi" : "—"}</div>
-        <div class="sub">${longest ? (longest.city || longest.lat.toFixed(3)+", "+longest.lon.toFixed(3)) + " · " + fdate((longest.start||"").slice(0,10)) : ""}</div></div>
+    <div class="bb purple s3">
+      <div class="hdr"><span class="pill">FLIGHT RECORDER</span><span class="pill">${span}</span></div>
+      <h1>BLACK BOX</h1>
+      <div class="sub" style="margin-top:6px">Every flight, found · ${ALL.length.toLocaleString()} flights · a decade of drone data</div>
+      <div style="position:relative;margin-top:34px">
+        <span class="tag" style="left:${pkLeft}%;transform:translateX(-50%);top:-28px">${topMonN} flights · ${fmon(topMon)}</span>
+        <div class="wave" style="margin-top:0">${waveHtml}</div>
+      </div>
     </div>
-    <div class="wsec"><h3>Flights by year</h3>
-      ${years.map(([y,n]) => `<div class="bar-row"><span class="lbl">${y}</span>
-        <span class="track"><span class="bar" style="width:${(n/maxY*100).toFixed(1)}%"></span>
-        <span class="num">${n}</span></span></div>`).join("")}
+
+    <div class="bb yellow">
+      <span class="pill">US STATES</span>
+      <div class="big">${states.size}</div>
+      <div class="sub">${[...states].slice(0,6).join(", ")}${states.size>6?"…":""}</div>
     </div>
-    <div class="wsec"><h3>Most flown spots</h3>
-      ${topLocs.map(([k,n]) => `<div class="bar-row"><span class="lbl2">${k}</span>
-        <span class="track"><span class="bar" style="width:${(n/maxL*100).toFixed(1)}%"></span>
-        <span class="num">${n}</span></span></div>`).join("")}
+    <div class="bb orange">
+      <span class="pill">COUNTRIES</span>
+      <div class="big">${countries.size}</div>
+      <div class="sub">${[...countries].join(", ")}</div>
     </div>
-    <div class="wsec"><h3>The fleet</h3>
-      ${fleet.map(([a,n]) => `<div class="bar-row"><span class="lbl2"><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${COLORS[a]};margin-right:6px"></span>${a}</span>
-        <span class="track"><span class="bar" style="width:${(n/maxA*100).toFixed(1)}%;background:${COLORS[a]}"></span>
-        <span class="num">${n}</span></span></div>`).join("")}
+    <div class="bb green">
+      <span class="pill">MEDIA CAPTURED</span>
+      <div class="big">${photos.toLocaleString()}</div>
+      <div class="sub">photos · ${videos.toLocaleString()} videos from the sky</div>
     </div>
-    <div class="wsec facts"><h3>Deep cuts</h3>
-      <div class="row"><span class="l">Farthest flight from home</span><span class="r">${far ? Math.round(farD).toLocaleString()+" mi · "+(far.city || far.lat.toFixed(2)+", "+far.lon.toFixed(2)) : "—"}</span></div>
-      <div class="row"><span class="l">Busiest month ever</span><span class="r">${fmon(topMon)} · ${topMonN} flights</span></div>
-      <div class="row"><span class="l">Photos captured</span><span class="r">${photos.toLocaleString()}</span></div>
-      <div class="row"><span class="l">Videos captured</span><span class="r">${videos.toLocaleString()}</span></div>
-      <div class="row"><span class="l">Flights recovered from footage</span><span class="r">${ALL.filter(f=>f.source==="srt").length}</span></div>
-    </div>`;
+
+    <div class="bb olive s2">
+      <div class="hdr"><span class="pill">FLIGHTS BY YEAR</span></div>
+      <div class="vbars">
+        ${yearsArr.map(([y,n]) => `<div class="vb" ${n===maxY?'style="position:relative"':''}>
+          ${n===maxY?`<span class="tag" style="left:50%;transform:translateX(-50%);top:-8px">${n}</span>`:""}
+          <i style="height:${Math.max(4,(n/maxY*72)).toFixed(1)}%"></i><b>’${y.slice(2)}</b></div>`).join("")}
+      </div>
+    </div>
+    <div class="bb dark">
+      <span class="pill">RECORD DAY</span>
+      <div class="cal">${calHtml}</div>
+      <div class="cap">${topDayN} flights · ${fdate(topDay)}</div>
+    </div>
+
+    <div class="bb purple">
+      <span class="pill">FARTHEST FROM HOME</span>
+      <div class="big">${far ? Math.round(farD).toLocaleString() : "—"}<small> mi</small></div>
+      <div class="sub">${far ? (far.city || far.lat.toFixed(2)+", "+far.lon.toFixed(2)) : ""}</div>
+      <div class="goal"><div class="gt"><span>Lawrence, KS</span><span>${far ? (far.city||"").split(",")[0] : ""}</span></div>
+        <div class="gb"><i style="width:${Math.min(100, farD/12450*100).toFixed(1)}%"></i></div></div>
+    </div>
+    <div class="bb yellow">
+      <span class="pill">LONGEST FLIGHT</span>
+      <div class="big">${longest ? (longest.distanceKm*0.6214).toFixed(1) : "—"}<small> mi</small></div>
+      <div class="sub">${longest ? [longest.city, fdate((longest.start||"").slice(0,10))].filter(Boolean).join(" · ") : ""}</div>
+    </div>
+    <div class="bb dark">
+      <span class="pill">DEEP CUTS</span>
+      <div style="margin-top:12px">
+        <div class="frow"><span class="l">Top speed</span><span class="r">${topSpeed ? topSpeed.toFixed(1)+" mph" : "—"}</span></div>
+        <div class="frow"><span class="l">Max altitude</span><span class="r">${maxAlt ? Math.round(maxAlt).toLocaleString()+" ft" : "—"}</span></div>
+        <div class="frow"><span class="l">Busiest month</span><span class="r">${fmon(topMon)}</span></div>
+        <div class="frow"><span class="l">Recovered from footage</span><span class="r">${ALL.filter(f=>f.source==="srt").length}</span></div>
+      </div>
+    </div>
+
+    <div class="bb sage s2">
+      <span class="pill">MOST FLOWN SPOTS</span>
+      <div style="margin-top:12px">
+        ${topLocs.map(([k,n]) => `<div class="hrow"><span class="l">${k}</span>
+          <span class="t"><span class="b" style="width:${(n/maxL*100).toFixed(1)}%"></span><span class="n">${n}</span></span></div>`).join("")}
+      </div>
+    </div>
+    <div class="bb dark">
+      <span class="pill">THE FLEET</span>
+      <div style="margin-top:12px">
+        ${fleet.map(([a,n]) => `<div class="hrow" style="font-size:11px"><span class="l"><span class="fleetdot" style="background:${COLORS[a]}"></span>${a}</span>
+          <span class="t"><span class="b" style="width:${(n/maxA*100).toFixed(1)}%;background:${COLORS[a]}"></span><span class="n">${n}</span></span></div>`).join("")}
+      </div>
+    </div>
+
+    <div class="bb dark s3"><div class="foot"><span class="ic">i</span>MEYEZE.GITHUB.IO/AMELIA</div></div>`;
 }
-document.getElementById("wrapTab").onclick = () => document.getElementById("wrapped").classList.add("open");
 document.getElementById("wclose").onclick = () => document.getElementById("wrapped").classList.remove("open");
 
 function years(){ return [...new Set(FLIGHTS.map(f=>+f.start?.slice(0,4)).filter(Boolean))].sort(); }
@@ -532,7 +671,9 @@ function stats(vis){
     <div class="tile"><div class="k">Distance flown</div><div class="v">${miles >= 100 ? Math.round(miles) : miles.toFixed(1)} mi</div>
       <div class="sub">from decrypted tracks</div></div>
     <div class="tile"><div class="k">Locations</div><div class="v">${places}</div>
-      <div class="sub">distinct takeoff spots</div></div>`;
+      <div class="sub">distinct takeoff spots</div></div>
+    <button class="bbOpen" onclick="document.getElementById('wrapped').classList.add('open')">
+      <span class="k">View the</span><span class="word">BLACK BOX</span></button>`;
 }
 
 // flight card on click
