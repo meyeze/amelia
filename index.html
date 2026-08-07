@@ -63,7 +63,7 @@
   .tile .sub{font-size:11px;color:var(--ink-2);margin-top:2px}
 
   /* ---------- flight card ---------- */
-  .card{position:absolute;left:18px;bottom:84px;z-index:11;width:270px;display:none;
+  .card{position:absolute;left:18px;bottom:124px;z-index:11;width:270px;display:none;
     background:rgba(26,26,25,.95);backdrop-filter:blur(10px);border:1px solid var(--hairline);
     border-radius:var(--radius);padding:16px;box-shadow:0 4px 24px rgba(0,0,0,.5)}
   .card.show{display:block}
@@ -76,7 +76,7 @@
   .note{font-size:11px;color:var(--ink-muted);margin-top:10px;line-height:1.4}
 
   /* ---------- wrapped panel ---------- */
-  .wrapTab{position:absolute;right:0;top:50%;transform:translateY(-50%);z-index:11;
+  .wrapTab{position:absolute;right:0;bottom:130px;z-index:11;
     background:rgba(26,26,25,.92);border:1px solid var(--hairline);border-right:none;
     border-radius:12px 0 0 12px;color:var(--ink-2);font-family:var(--font);font-size:11px;
     letter-spacing:.22em;padding:16px 9px;cursor:pointer;writing-mode:vertical-rl;text-orientation:mixed;
@@ -108,12 +108,12 @@
   .facts .row .l{color:var(--ink-muted)} .facts .row .r{color:var(--ink-1);text-align:right}
 
   /* ---------- map style switcher ---------- */
-  .styles{position:absolute;right:18px;bottom:18px;z-index:10;display:flex;flex-direction:column;
+  .styles{position:absolute;left:18px;bottom:74px;z-index:10;display:flex;flex-direction:row;
     background:rgba(26,26,25,.92);backdrop-filter:blur(10px);border:1px solid var(--hairline);
     border-radius:14px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.4)}
   .styles button{background:none;border:none;color:var(--ink-2);font-family:var(--font);font-size:11px;
-    letter-spacing:.08em;padding:9px 16px;cursor:pointer;border-bottom:1px solid var(--hairline)}
-  .styles button:last-child{border-bottom:none}
+    letter-spacing:.08em;padding:9px 14px;cursor:pointer;border-right:1px solid var(--hairline)}
+  .styles button:last-child{border-right:none}
   .styles button.on{background:rgba(81,118,171,.28);color:var(--ink-1)}
   .styles button:hover:not(.on){background:rgba(255,255,255,.06)}
 </style>
@@ -122,7 +122,7 @@
 <div id="globe"></div>
 
 <div class="topbar">
-  <div class="brand" id="brand"><img src="assets/logo.png" alt="AMELIA" class="logo"><div class="ver" id="ver"></div></div>
+  <div class="brand" id="brand"><img src="assets/logo.png" alt="AMELIA" class="logo"></div>
   <input class="search" id="search" placeholder="Search flights, places, years…">
 </div>
 
@@ -156,7 +156,7 @@
 </div>
 
 <script>
-const BUILD = { version: "1.1.0", released: "August 7, 2026" };
+const BUILD = { version: "1.2.0", released: "August 7, 2026" };
 const AIRCRAFT_ORDER = ["Mavic Pro","Mini 3 Pro","Mini 4 Pro","Mavic 2 Zoom","Mavic 3","Spark","Phantom 3 Advanced","Recovered footage","Unknown"];
 const COLORS = {
   "Mavic Pro":            getCss('--s1'),
@@ -182,6 +182,41 @@ const viewer = new Cesium.Viewer("globe", {
 });
 viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString("#0d0d0d");
 viewer.scene.skyAtmosphere.show = true;
+
+// flight layer with clustering (clusters at far zoom, individual pins up close)
+const ds = new Cesium.CustomDataSource("flights");
+viewer.dataSources.add(ds);
+ds.clustering.enabled = true;
+ds.clustering.pixelRange = 65;
+ds.clustering.minimumClusterSize = 3;
+ds.clustering.clusterEvent.addEventListener((clustered, cluster) => {
+  cluster.label.show = false;
+  cluster.billboard.show = true;
+  cluster.billboard.image = clusterSprite(clustered.length);
+  cluster.billboard.verticalOrigin = Cesium.VerticalOrigin.CENTER;
+  cluster.billboard.id = { cluster: true, entities: clustered };
+});
+const clusterCache = {};
+function clusterSprite(n){
+  const key = n > 99 ? "99+" : String(n);
+  if (clusterCache[key]) return clusterCache[key];
+  const S = 72, c = document.createElement("canvas");
+  c.width = c.height = S;
+  const x = c.getContext("2d"), m = S/2;
+  const g = x.createRadialGradient(m, m, 10, m, m, m);
+  g.addColorStop(0, "rgba(81,118,171,0.45)");
+  g.addColorStop(0.6, "rgba(81,118,171,0.15)");
+  g.addColorStop(1, "rgba(81,118,171,0)");
+  x.fillStyle = g; x.fillRect(0, 0, S, S);
+  x.beginPath(); x.arc(m, m, 16, 0, 7);
+  x.fillStyle = "rgba(26,26,25,0.94)"; x.fill();
+  x.lineWidth = 2; x.strokeStyle = "rgba(255,255,255,0.55)"; x.stroke();
+  x.fillStyle = "#ffffff"; x.font = "600 13px system-ui,sans-serif";
+  x.textAlign = "center"; x.textBaseline = "middle";
+  x.fillText(key, m, m + 0.5);
+  clusterCache[key] = c;
+  return c;
+}
 
 // Map styles — keyless Esri services; base swaps for Google photorealistic 3D tiles once API key exists
 const ARCGIS = "https://services.arcgisonline.com/ArcGis/rest/services/";
@@ -225,7 +260,6 @@ fetch("data/flights.json", {cache: "no-cache"}).then(r=>r.json()).then(d => {
 
 // ---------- version + about card ----------
 function initMeta(){
-  document.getElementById("ver").textContent = "v" + BUILD.version;
   document.getElementById("aboutVer").textContent = "v" + BUILD.version;
   document.getElementById("aboutDate").textContent = BUILD.released;
   document.getElementById("aboutFlights").textContent = ALL.length.toLocaleString();
@@ -238,6 +272,8 @@ document.getElementById("brand").onclick = () => document.getElementById("about"
 const HOME = [38.9717, -95.2353]; // Lawrence
 const REGIONS = [ // rough bounding boxes, checked in order; approximate by design
   ["Bahamas","🇧🇸",[23.7,27.5,-79.5,-72.7]], ["Canada","🇨🇦",[48.99,60,-139,-52]],
+  ["Costa Rica","🇨🇷",[8.0,11.3,-86.0,-82.5]], ["Canary Islands (Spain)","🇮🇨",[27.5,29.5,-18.4,-13.3]],
+  ["Portugal","🇵🇹",[36.9,42.2,-9.6,-6.2]], ["Mexico","🇲🇽",[14.5,32.7,-118.4,-86.7]],
   ["Kansas","US",[36.99,40.01,-102.05,-94.59]], ["Colorado","US",[36.99,41.01,-109.06,-102.04]],
   ["Minnesota","US",[43.5,49.4,-97.24,-89.48]], ["Missouri","US",[35.99,40.62,-95.77,-89.1]],
   ["Illinois","US",[36.97,42.51,-91.51,-87.02]], ["California","US",[32.5,42.01,-124.5,-114.13]],
@@ -255,6 +291,7 @@ const REGIONS = [ // rough bounding boxes, checked in order; approximate by desi
 function region(lat, lon){
   for (const [name, cc, [a,b,c2,d]] of REGIONS)
     if (lat >= a && lat <= b && lon >= c2 && lon <= d) return { name, country: cc === "US" ? "United States" : name };
+  if (lat >= 24 && lat <= 49.5 && lon >= -125 && lon <= -66) return { name: null, country: "United States" };
   return null;
 }
 const hav2 = (a1,o1,a2,o2) => { const R=3958.8, r=Math.PI/180;
@@ -265,7 +302,7 @@ function buildWrapped(){
   const mapped = FLIGHTS;
   const states = new Set(), countries = new Set();
   mapped.forEach(f => { const r = region(f.lat, f.lon);
-    if (r) { countries.add(r.country); if (r.country === "United States") states.add(r.name); } });
+    if (r) { countries.add(r.country); if (r.country === "United States" && r.name) states.add(r.name); } });
   // most flights in one day
   const byDay = {};
   ALL.forEach(f => { const d = (f.start||"").slice(0,10); if (d) byDay[d] = (byDay[d]||0)+1; });
@@ -395,8 +432,8 @@ function glowSprite(hex, ring){
   c.width = c.height = S;
   const x = c.getContext("2d"), m = S/2;
   const g = x.createRadialGradient(m, m, 3, m, m, m);
-  g.addColorStop(0, hexToRgba(hex, 0.55));
-  g.addColorStop(0.35, hexToRgba(hex, 0.20));
+  g.addColorStop(0, hexToRgba(hex, 0.40));
+  g.addColorStop(0.35, hexToRgba(hex, 0.13));
   g.addColorStop(1, hexToRgba(hex, 0));
   x.fillStyle = g;
   x.fillRect(0, 0, S, S);
@@ -414,12 +451,12 @@ function glowSprite(hex, ring){
 
 let entities = [];
 function render(){
-  entities.forEach(e => viewer.entities.remove(e)); entities = [];
+  ds.entities.removeAll(); entities = [];
   const vis = visible();
   vis.forEach(f => {
     const c = Cesium.Color.fromCssColorString(COLORS[f.aircraft] || "#898781");
     const hex = COLORS[f.aircraft] || "#898781";
-    const e = viewer.entities.add({
+    const e = ds.entities.add({
       position: Cesium.Cartesian3.fromDegrees(f.lon, f.lat),
       billboard: { image: glowSprite(hex, !!f.approx), width: 40, height: 40,
         scaleByDistance: new Cesium.NearFarScalar(2e5, 1.35, 8e6, 0.65) },
@@ -427,7 +464,7 @@ function render(){
     });
     entities.push(e);
     if (f.preview && f.preview.length > 1) {
-      const line = viewer.entities.add({
+      const line = ds.entities.add({
         polyline: {
           positions: Cesium.Cartesian3.fromDegreesArray(f.preview.flat()),
           width: 2, material: c.withAlpha(0.75), clampToGround: false },
@@ -437,7 +474,7 @@ function render(){
     }
     (f.recoveredSegs || []).forEach(seg => {
       if (seg.length < 2) return;
-      const line = viewer.entities.add({
+      const line = ds.entities.add({
         polyline: {
           positions: Cesium.Cartesian3.fromDegreesArray(seg.flat()),
           width: 2,
@@ -447,13 +484,14 @@ function render(){
       entities.push(line);
     });
   });
+  const pr = ds.clustering.pixelRange; ds.clustering.pixelRange = 0; ds.clustering.pixelRange = pr;
   stats(vis);
 }
 
 function stats(vis){
   const mins = vis.reduce((s,f)=>s+(f.durationMin||0),0);
   const miles = vis.reduce((s,f)=>s+(f.distanceKm||0),0)*0.6214;
-  const places = new Set(vis.map(f => f.city || `${f.lat?.toFixed(2)},${f.lon?.toFixed(2)}`)).size;
+  const places = new Set(vis.map(f => `${f.lat?.toFixed(2)},${f.lon?.toFixed(2)}`)).size;
   const withTracks = vis.filter(f=>f.hasTrack).length;
   const el = document.getElementById("stats");
   el.innerHTML = `
@@ -471,6 +509,13 @@ function stats(vis){
 const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 handler.setInputAction(m => {
   const picked = viewer.scene.pick(m.position);
+  if (picked?.id?.cluster) {
+    const pos = picked.id.entities[0].position.getValue(Cesium.JulianDate.now());
+    const carto = Cesium.Cartographic.fromCartesian(pos);
+    const h = Math.max(viewer.camera.positionCartographic.height / 3.5, 2500);
+    viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, h), duration: 1.1 });
+    return;
+  }
   const card = document.getElementById("card");
   if (picked?.id?.properties?.flight) {
     const f = picked.id.properties.flight.getValue();
