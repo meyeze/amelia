@@ -71,10 +71,12 @@
     letter-spacing:.05em;color:#6FA0E8}
 
   /* ---------- flight card ---------- */
-  .card{position:absolute;left:18px;bottom:168px;z-index:11;width:270px;display:none;
+  .card{position:absolute;left:0;top:0;z-index:11;width:270px;display:none;
     background:rgba(26,26,25,.95);backdrop-filter:blur(10px);border:1px solid var(--hairline);
-    border-radius:var(--radius);padding:16px;box-shadow:0 4px 24px rgba(0,0,0,.5)}
+    border-radius:var(--radius);padding:16px;box-shadow:0 4px 24px rgba(0,0,0,.5);
+    cursor:grab;user-select:none;touch-action:none}
   .card.show{display:block}
+  .card.dragging{cursor:grabbing}
   .card h3{margin:0 0 2px;font-size:15px;display:flex;align-items:center;gap:8px}
   .card .when{color:var(--ink-muted);font-size:12px;margin-bottom:10px}
   .row{display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;border-top:1px solid var(--grid)}
@@ -208,7 +210,7 @@
 <div class="clusterTip" id="clusterTip"></div>
 
 <script>
-const BUILD = { version: "1.4.0", released: "August 7, 2026" };
+const BUILD = { version: "1.5.0", released: "August 7, 2026" };
 const AIRCRAFT_ORDER = ["Mavic Pro","Mini 3 Pro","Mini 4 Pro","Mavic 2 Zoom","Mavic 3","Spark","Phantom 3 Advanced","Recovered footage","Unknown"];
 const COLORS = {
   "Mavic Pro":            getCss('--s1'),
@@ -705,10 +707,50 @@ handler.setInputAction(m => {
       <div class="row"><span class="l">Flight path</span><span class="r">${f.trackSource === "srt" ? "recovered from footage" : f.hasTrack ? (state.showPaths ? "on map" : "hidden — toggle PATHS") : "point only"}</span></div>
       ${f.videoCount ? `<div class="row"><span class="l">Videos in session</span><span class="r">${f.videoCount}</span></div>` : ""}
       ${f.hasTrack ? "" : `<div class="note">${f.source === "archive" ? "Approximate location from archive folder “" + (f.folder || "") + "” — date from file metadata." : f.source === "aloft" ? "This flight predates on-device logs — summary data only." : "No GPS track in this log — likely an indoor or pre-lock flight."}</div>`}`;
+    cardAnchor = Cesium.Cartesian3.fromDegrees(f.lon, f.lat);
+    cardDragged = false;
     card.classList.add("show");
+    positionCard();
     viewer.camera.flyTo({destination: Cesium.Cartesian3.fromDegrees(f.lon, f.lat, 4000), duration: 1.4});
-  } else card.classList.remove("show");
+  } else { card.classList.remove("show"); cardAnchor = null; }
 }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+// ---------- flight card: anchored under its dot, draggable anywhere ----------
+let cardAnchor = null;   // Cartesian3 of the clicked flight
+let cardDragged = false; // once dragged, stop auto-following
+const cardEl = document.getElementById("card");
+const toWin = Cesium.SceneTransforms.worldToWindowCoordinates
+  ? (s,p) => Cesium.SceneTransforms.worldToWindowCoordinates(s,p)
+  : (s,p) => Cesium.SceneTransforms.wgs84ToWindowCoordinates(s,p);
+function positionCard(){
+  if (!cardAnchor || cardDragged || !cardEl.classList.contains("show")) return;
+  const w = toWin(viewer.scene, cardAnchor);
+  if (!w) return;
+  const cw = cardEl.offsetWidth || 270, ch = cardEl.offsetHeight || 200;
+  cardEl.style.left = Math.min(Math.max(8, w.x - cw/2), innerWidth - cw - 8) + "px";
+  cardEl.style.top  = Math.min(Math.max(8, w.y + 16), innerHeight - ch - 8) + "px";
+}
+viewer.scene.postRender.addEventListener(positionCard);
+cardEl.addEventListener("pointerdown", e => {
+  if (e.target.closest("button")) return;
+  cardDragged = true;
+  cardEl.classList.add("dragging");
+  const r = cardEl.getBoundingClientRect();
+  const dx = e.clientX - r.left, dy = e.clientY - r.top;
+  cardEl.setPointerCapture(e.pointerId);
+  const move = ev => {
+    cardEl.style.left = Math.min(Math.max(0, ev.clientX - dx), innerWidth - 40) + "px";
+    cardEl.style.top  = Math.min(Math.max(0, ev.clientY - dy), innerHeight - 40) + "px";
+  };
+  const up = () => {
+    cardEl.classList.remove("dragging");
+    cardEl.removeEventListener("pointermove", move);
+    cardEl.removeEventListener("pointerup", up);
+  };
+  cardEl.addEventListener("pointermove", move);
+  cardEl.addEventListener("pointerup", up);
+  e.preventDefault();
+});
 
 // cluster count on hover (numbers live here now, not on the bubbles)
 const tip = document.getElementById("clusterTip");
